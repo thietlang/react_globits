@@ -1,12 +1,15 @@
 import React, { useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { CountryData } from "./CountryData";
+
 
 const Countries = () => {
   const [countries, setCountries] = useState(CountryData);
-  const [selectedCountry, setSelectedCountry] = useState(null); // Lưu quốc gia đang chỉnh sửa
-  const [isEditPopupOpen, setIsEditPopupOpen] = useState(false); // Quản lý trạng thái popup Edit
-  const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false); // Quản lý trạng thái popup Delete
-  const [isAddPopupOpen, setIsAddPopupOpen] = useState(false); // Quản lý trạng thái popup Add
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
+  const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
+  const [isAddPopupOpen, setIsAddPopupOpen] = useState(false);
 
   const handleEdit = (country) => {
     setSelectedCountry(country);
@@ -20,43 +23,52 @@ const Countries = () => {
 
   const confirmDelete = () => {
     setCountries(countries.filter((country) => country.code !== selectedCountry.code));
-    setIsDeletePopupOpen(false); // Đóng popup sau khi xóa
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setSelectedCountry({ ...selectedCountry, [name]: value });
-  };
-
-  const handleSave = () => {
-    setCountries(
-      countries.map((country) =>
-        country.code === selectedCountry.code ? selectedCountry : country
-      )
-    );
-    setIsEditPopupOpen(false); // Đóng popup sau khi lưu
+    setIsDeletePopupOpen(false);
   };
 
   const handleAddNewCountry = () => {
-    setSelectedCountry({ name: "", code: "", description: "" }); // Reset dữ liệu
-    setIsAddPopupOpen(true); // Mở popup Add
-  };
-
-  const handleAddSave = () => {
-    setCountries([...countries, selectedCountry]); // Thêm quốc gia mới
-    setIsAddPopupOpen(false); // Đóng popup sau khi lưu
+    setSelectedCountry({ name: "", code: "", description: "" });
+    setIsAddPopupOpen(true);
   };
 
   const handleCancel = () => {
-    setIsEditPopupOpen(false); // Đóng popup nếu hủy
-    setIsDeletePopupOpen(false); // Đóng popup xóa nếu hủy
-    setIsAddPopupOpen(false); // Đóng popup Add nếu hủy
+    setIsEditPopupOpen(false);
+    setIsDeletePopupOpen(false);
+    setIsAddPopupOpen(false);
   };
+
+  // Schema xác thực sử dụng Yup
+  const validationSchema = Yup.object({
+    name: Yup.string().required("Name is required"),
+    code: Yup.string().required("Code is required"),
+    description: Yup.string().required("Description is required"),
+  });
+
+  const formik = useFormik({
+    initialValues: selectedCountry || { name: "", code: "", description: "" },
+    enableReinitialize: true,
+    validationSchema,
+    onSubmit: (values) => {
+      if (isEditPopupOpen) {
+        // Update existing country
+        setCountries(
+          countries.map((country) =>
+            country.code === values.code ? values : country
+          )
+        );
+        setIsEditPopupOpen(false);
+      } else if (isAddPopupOpen) {
+        // Add new country
+        setCountries([...countries, values]);
+        setIsAddPopupOpen(false);
+      }
+    },
+  });
 
   return (
     <div>
       <h1>Country List</h1>
-      <button onClick={handleAddNewCountry}>Add New Country</button> {/* Nút Add */}
+      <button onClick={handleAddNewCountry}>Add New Country</button>
       <table border="1" style={{ width: "100%", textAlign: "left" }}>
         <thead>
           <tr>
@@ -81,19 +93,22 @@ const Countries = () => {
         </tbody>
       </table>
 
-      {/* Popup Edit */}
-      {isEditPopupOpen && (
+      {/* Popup Edit/Add */}
+      {(isEditPopupOpen || isAddPopupOpen) && (
         <div style={popupStyles}>
-          <h2>Edit Country</h2>
-          <form>
+          <h2>{isEditPopupOpen ? "Edit Country" : "Add New Country"}</h2>
+          <form onSubmit={formik.handleSubmit}>
             <label>
               Name:
               <input
                 type="text"
                 name="name"
-                value={selectedCountry.name}
-                onChange={handleInputChange}
+                value={formik.values.name}
+                onChange={formik.handleChange}
               />
+              {formik.errors.name && formik.touched.name && (
+                <div style={{ color: "red" }}>{formik.errors.name}</div>
+              )}
             </label>
             <br />
             <label>
@@ -101,10 +116,13 @@ const Countries = () => {
               <input
                 type="text"
                 name="code"
-                value={selectedCountry.code}
-                onChange={handleInputChange}
-                disabled // Không cho phép sửa code
+                value={formik.values.code}
+                onChange={formik.handleChange}
+                disabled={isEditPopupOpen}
               />
+              {formik.errors.code && formik.touched.code && (
+                <div style={{ color: "red" }}>{formik.errors.code}</div>
+              )}
             </label>
             <br />
             <label>
@@ -112,59 +130,15 @@ const Countries = () => {
               <input
                 type="text"
                 name="description"
-                value={selectedCountry.description}
-                onChange={handleInputChange}
+                value={formik.values.description}
+                onChange={formik.handleChange}
               />
+              {formik.errors.description && formik.touched.description && (
+                <div style={{ color: "red" }}>{formik.errors.description}</div>
+              )}
             </label>
             <br />
-            <button type="button" onClick={handleSave}>
-              Save
-            </button>
-            <button type="button" onClick={handleCancel}>
-              Cancel
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Popup Add */}
-      {isAddPopupOpen && (
-        <div style={popupStyles}>
-          <h2>Add New Country</h2>
-          <form>
-            <label>
-              Name:
-              <input
-                type="text"
-                name="name"
-                value={selectedCountry.name}
-                onChange={handleInputChange}
-              />
-            </label>
-            <br />
-            <label>
-              Code:
-              <input
-                type="text"
-                name="code"
-                value={selectedCountry.code}
-                onChange={handleInputChange}
-              />
-            </label>
-            <br />
-            <label>
-              Description:
-              <input
-                type="text"
-                name="description"
-                value={selectedCountry.description}
-                onChange={handleInputChange}
-              />
-            </label>
-            <br />
-            <button type="button" onClick={handleAddSave}>
-              Save
-            </button>
+            <button type="submit">Save</button>
             <button type="button" onClick={handleCancel}>
               Cancel
             </button>
